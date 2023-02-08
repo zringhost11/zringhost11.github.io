@@ -1,15 +1,189 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HelloWorld</title>
+    <title>Document</title>
 </head>
-
 <body>
-    HelloWorld
-</body>
+    <script src="svg.js"></script>
+    <script src="bezier.js"></script>
+    <script src="svgui.js"></script>
 
+    <div style="position:absolute;z-index:1">
+        动画时间(秒):<input type="input" id="inputTime">
+        <input type="button" id="ctrl1" value="暂停">
+        <input type="button" id="ctrl2" value="隐藏辅助线">
+        <input type="checkbox" id="ctrl3" checked="true">显示完整贝塞尔参考线
+        <input type="checkbox" id="ctrl5" checked="true">格式化时间
+        <input type="button" id="ctrl4" value="插入到当前帧">
+    </div>
+    <script>
+        document.getElementById("inputTime").value = `${(maxTime/1000)}`;
+        document.getElementById("inputTime").onchange = modifyTimeHandle;
+        document.getElementById("ctrl1").onclick = clickHandle;
+        document.getElementById("ctrl2").onclick = clickHandle;
+        document.getElementById("ctrl3").onclick = changeHandle;
+        document.getElementById("ctrl4").onclick = clickHandle;
+        document.getElementById("ctrl5").onclick = clickHandle;
+
+        function getDist(p1, p2, isGetAbs = true) {
+            var dx = p2.x - p1.x;
+            var dy = p2.y - p1.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (isGetAbs) {
+                dist = Math.abs(dist);
+            }
+            return dist;
+        }
+
+        
+        function updateReferenceLine(isAutoCreate = true){
+            if(2 > this.parr.length)return;
+            var minX = NaN;
+            var maxX = NaN;
+            var maxY = NaN;
+            var minY = NaN;
+            for(var i = this.parr.length-1;i>=0;i--){
+                var po = parr[i];
+                if(isNaN(minX)){
+                    minX = po.x;
+                    maxY = po.y;
+                    maxX = po.x;
+                    minY = po.y;
+                }else{
+                    if(minX>po.x)minX = po.x;
+                    if(maxX<po.x)maxX = po.x;
+                    if(maxY<po.y)maxY = po.y;
+                    if(minY>po.y)minY = po.y;
+                }
+            }
+            ctrlTimeline(minX,minY,maxX-minX,maxY-minY)
+
+
+
+
+            if(4 != this.parr.length)return;
+            var referenceLine = document.getElementById("referenceLine");
+            if(!isAutoCreate && null == referenceLine)return;
+
+            if(null == referenceLine){
+                    referenceLine = createTag("path",{id:"referenceLine","stroke":"#00ff00",'stroke-width':'1',fill:"none","pointer-events":"none"});
+                    g.appendChild(referenceLine);
+                }
+
+                var maxNum = 30;
+                var addNum = 1/maxNum;
+                var t = 0;
+                var dstr = "";
+                var outWeight = getOutWeight(parr[0].x,parr[1].x,parr[3].x);
+                var outTangent = (parr[1].y-parr[0].y)/(parr[1].x-parr[0].x);
+                var inWeight = getInWeight(parr[3].x,parr[2].x,parr[0].x);
+                var inTangent = (parr[3].y-parr[2].y)/(parr[3].x-parr[2].x);
+                var dur = maxTime/1000;
+                var totalX = parr[3].x - parr[0].x;
+                console.log(outTangent,inTangent,outWeight,inWeight);
+                var dlen = getDist(parr[0],parr[3]);
+
+                for(var i = 0;i<=maxNum;i++){
+                    //var x = bezier3P(t,parr[0].x,parr[1].x,parr[2].x,parr[3].x);
+                    //var y = bezier3P(t,parr[0].y,parr[1].y,parr[2].y,parr[3].y);
+                    var x = parr[0].x+totalX*t;
+
+                    //var x = bezie3(t,dur,parr[0].x,parr[3].x,outTangent,inTangent,outWeight,inWeight);
+                    //var x = bezie3(t,dur,parr[0].x,parr[3].x,outTangent,inTangent,outWeight,inWeight);
+                    //var y = bezie3(t,totalX,parr[0].y,parr[3].y,outTangent,inTangent,outWeight,inWeight);
+                    //var y = bezie3(t,totalX,parr[0].y,parr[3].y,outTangent,inTangent);
+                    //console.log(t*totalX);
+                    var tnum = t*totalX;
+                    //var y = hermiteCurveSplineWeight(parr[0].y,0,outWeight,outTangent,parr[3].y,1,inWeight,inTangent,t*totalX);
+                    var y = hermiteCurveSplineWeight(parr[0].y,0,outWeight,outTangent,parr[3].y,totalX,inWeight,inTangent,tnum);
+                    //console.log("计算出来的值:"+y,tnum);
+                    
+                    var o = {x:x,y:y};
+
+                    //var o = bezier3XY(t,parr[0],parr[3],outWeight,outTangent,inWeight,inTangent);
+
+                    
+
+                    if(0 == i){
+                        dstr += "M"+o.x+" "+o.y;
+                    }else{
+                        dstr += "L"+o.x+" "+o.y;
+                    }
+                    referenceLine.setAttribute("d",dstr);
+                    t += addNum;
+
+                }
+        }
+        updateReferenceLine();
+        function changeHandle(e){
+            //console.log(e.target.checked);
+            var referenceLine = document.getElementById("referenceLine");
+            //path = createTag("path",{id:id+"_p","stroke":col,'stroke-width':'2',fill:"none","pointer-events":"none"});
+            var dis = "none";
+            if(e.target.checked){
+                if(4 != parr.length)return;
+                dis = "";
+
+                updateReferenceLine();
+            }
+            if(null != referenceLine){
+               referenceLine.style.display = dis;
+            }
+        }
+
+        function uiStop(){
+            document.getElementById("ctrl1").value = "播放";
+            stop();
+        }
+
+        function clickHandle(e){
+            if("ctrl1" == e.target.id){
+                if(isStop){
+                    e.target.value = "暂停";
+                    play();
+                }else{
+                    uiStop();
+                }
+            }else if("ctrl2" == e.target.id){
+                isHiddenLine = !isHiddenLine;
+                if(isHiddenLine)e.target.value = "显示辅助线";
+                else e.target.value = "隐藏辅助线";
+                resetPoint();
+            }else if("ctrl4" == e.target.id){
+                if(4 != parr.length)return;
+
+                var xobj = insertBezier(currT,parr[0].x,parr[1].x,parr[2].x,parr[3].x);
+                var yobj = insertBezier(currT,parr[0].y,parr[1].y,parr[2].y,parr[3].y);
+
+                parr[1].x = xobj.pc0;
+                parr[1].y = yobj.pc0;
+
+                parr[2].x = xobj.c0;
+                parr[2].y = yobj.c0;
+
+                parr[3].x = xobj.val;
+                parr[3].y = yobj.val;
+                stop();
+                currTime = maxTime;
+                resetPoint();
+
+            }else if("ctrl5" == e.target.id){
+                formatTime = e.target.checked;
+                resetPoint();
+            }
+        }
+        function modifyTimeHandle(e){
+            var val = Number(e.target.value);
+            if(isNaN(val) || 0>=val){
+                e.target.value = maxTime/1000;
+            }else{
+                maxTime = val*1000;
+                resetPoint();
+            }
+        }
+    </script>
+</body>
 </html>
